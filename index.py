@@ -1,5 +1,6 @@
 import os.path
-import signal
+import os
+import logging
 import traceback
 from datetime import datetime
 from selenium import webdriver
@@ -23,7 +24,7 @@ LOADING = True
 # This is essentially a whitelist and can't be used with blacklisting. To only enable this whitelisting, set nonestop_monitor to False below
 # 『hololive IDOL PROJECT presents ホロライブアイドル道ラジオ～私たちの歌をきけッ！』 毎週日曜日17：30～18：00
 # 『星街すいせい・田所あずさ 平行線すくらんぶる』 毎週日曜17時〜
-radio_list = ["hololive", "星街すいせい", "だいたいにじさんじのらじお", "Fate", "A&G ARTIST ZONE ▽▲TRiNITY▲▽ のTHE CATCH", "ガキパラ"]
+radio_list = ["hololive", "星街すいせい", "だいたいにじさんじのらじお", "平行線すくらんぶる", "Fate", "A&G ARTIST ZONE ▽▲TRiNITY▲▽ のTHE CATCH", "悠木碧のこしらえるラジオ"]
 
 
 # Set to True to monitor and download every radio segment seperately and essentially enable just blacklisting radios.
@@ -55,7 +56,7 @@ def submit_form():
         gender_button_element = WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.NAME, "sex")))
         gender_button_element[0].click()
     except Exception as e:
-        print("Error with gender element", e)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Error with gender element", e)
 
     try:
         # Send a year value
@@ -63,14 +64,14 @@ def submit_form():
             EC.presence_of_all_elements_located((By.ID, "birth_year")))
         birth_year_button_element[0].send_keys(1999)
     except Exception as e:
-        print("Error with birth year element", e)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Error with birth year element", e)
 
     try:
         # Select the first employment from the dropdown box
         job_button_element_select = Select(driver.find_element(By.NAME, "job"))
         job_button_element_select.select_by_value('1')
     except Exception as e:
-        print("Error with job element", e)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Error with job element", e)
 
     try:
         # Click on the first location button
@@ -78,21 +79,21 @@ def submit_form():
             EC.presence_of_all_elements_located((By.NAME, "location")))
         environment_button_element[0].click()
     except Exception as e:
-        print("Error with environment element", e)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Error with environment element", e)
 
     try:
         # Click on the submit button
         submit_button_element = driver.find_element(By.CSS_SELECTOR, "input[type='button']")
         submit_button_element.click()
     except Exception as e:
-        print("Error with submit element", e)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Error with submit element", e)
 
     try:
         # Click on the OK button from the alert popup
         WebDriverWait(driver, 10).until(EC.alert_is_present())
         driver.switch_to.alert.accept()
     except Exception as e:
-        print("Error with ok element", e)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Error with ok element", e)
 
 
 def sanitize_text(radio_info):
@@ -181,9 +182,9 @@ def download(radio_info):
     command_list += ['-c', 'copy', "-c:a", "aac", full_output_path]
     process = subprocess.Popen(command_list)
     print(" "*50, end="\r")
-    print(f"\n{radio_info[0]} is now on the air")
+    print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {radio_info[0]} is now on the air")
     if file_exist:
-        print(f"File already exist...renaming to: {filename}")
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | File already exist...renaming to: {filename}")
     return process
 
 
@@ -222,7 +223,7 @@ def monitor_radio():
             downloading_process = download(radio_info)
         elif not found_radio and downloading_process is not None:
             downloading_process.terminate()
-            print("\nProgram has ended...")
+            print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Program has ended...")
             downloading_process = None
             found_radio = False
             try:
@@ -233,26 +234,28 @@ def monitor_radio():
 
 if __name__ == "__main__":
     try:
-        print("Starting Program...")
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Starting Program...")
+        logging.getLogger('WDM').setLevel(logging.ERROR)
+        os.environ['WDM_LOG'] = "false"
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--mute-audio')
         chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
         chrome_options.add_argument(
             "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.81 Safari/537.36")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager(log_level=0).install()), options=chrome_options)
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     except WebDriverException as driverError:
-        print(driverError)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {driverError}")
 
     try:
         driver.get("https://www.uniqueradio.jp/agplayer5/player.php")
         data = driver.page_source
         if "ご利用登録" in data:
             submit_form()
-
+        driver.refresh()
         monitor_radio()
     except Exception:
-        print(traceback.format_exc())
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {traceback.format_exc()}")
         try:
             os.remove("metadata.txt")
         except OSError:
